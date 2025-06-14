@@ -217,10 +217,10 @@ def get_plot_data():
         return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
 
 
-@app.route('/get_fitting_table_headers', methods=['GET'])
-def get_fitting_table_headers():
+@app.route('/get_model_table_headers', methods=['GET'])
+def get_model_table_headers():
     """
-    FITTINGタブのテーブル生成に必要なFeatureとTargetのヘッダーを返します。
+    MODELタブのテーブル生成に必要なFeatureとTargetのヘッダーを返します。
     """
     feature_headers = session.get('feature_headers', [])
     target_headers = session.get('target_headers', [])
@@ -237,149 +237,50 @@ def get_fitting_table_headers():
         'target_headers': filtered_target_headers
     }), 200
 
-
-@app.route('/save_fitting_config', methods=['POST'])
-def save_fitting_config():
+@app.route('/save_model_config', methods=['POST'])
+def save_model_config():
     """
-    FITTINGタブの選択状態をJSONファイルとして保存します。
+    MODELタブの設定（関数定義とフィッティング設定）をJSONファイルとして保存します。
     """
     data = request.get_json()
     fitting_config = data.get('fittingConfig')
-    fitting_method = data.get('fittingMethod') # '線形結合' or '乗積'
+    fitting_method = data.get('fittingMethod')
+    functions = data.get('functions')
 
-    if not fitting_config:
-        return jsonify({'error': 'No fitting configuration data received.'}), 400
+    if not fitting_config or not functions:
+        return jsonify({'error': 'No model configuration data received.'}), 400
 
-    # ロードされているFeature/Target CSVのパスを取得
     feature_filepath = session.get('feature_filepath')
     target_filepath = session.get('target_filepath')
 
     if not feature_filepath or not target_filepath:
         return jsonify({'error': 'Feature or Target CSV files not loaded. Cannot save configuration.'}), 400
 
-    # 保存するデータ構造を構築
     save_data = {
         'timestamp': datetime.now().isoformat(),
-        'feature_csv_path': os.path.abspath(feature_filepath), # 絶対パスで保存
-        'target_csv_path': os.path.abspath(target_filepath),   # 絶対パスで保存
+        'feature_csv_path': os.path.abspath(feature_filepath),
+        'target_csv_path': os.path.abspath(target_filepath),
         'fitting_method': fitting_method,
-        'config': fitting_config
+        'fitting_config': fitting_config, # フィッティング設定を統合
+        'functions': functions # 関数定義を統合
     }
 
-    # ファイル名生成
     timestamp_str = datetime.now().strftime('%Y%m%d%H%M%S')
-    filename = f"FITTING_{timestamp_str}.json"
+    filename = f"MODEL_{timestamp_str}.json" # ファイル名をMODEL_yyyymmddHHMMSS.jsonに変更
     filepath = os.path.join(JSON_SUBFOLDER, filename)
 
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(save_data, f, ensure_ascii=False, indent=4)
-        return jsonify({'message': f'Fitting configuration saved successfully: {filename}', 'filepath': filepath}), 200
+        return jsonify({'message': f'Model configuration saved successfully: {filename}', 'filepath': filepath}), 200
     except Exception as e:
-        app.logger.error(f"Error saving fitting config: {e}", exc_info=True)
-        return jsonify({'error': f'Failed to save fitting configuration: {str(e)}'}), 500
+        app.logger.error(f"Error saving model config: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to save model configuration: {str(e)}'}), 500
 
-@app.route('/load_fitting_config', methods=['POST'])
-def load_fitting_config():
+@app.route('/load_model_config', methods=['POST'])
+def load_model_config():
     """
-    FITTINGタブのJSON設定ファイルをロードし、その内容を返します。
-    現在ロードされているCSVファイルのパスとの一致を検証します。
-    """
-    data = request.get_json()
-    json_filename = data.get('filename') # フロントエンドからファイル名を受け取る
-
-    if not json_filename:
-        return jsonify({'error': 'No JSON file name provided.'}), 400
-
-    # `json_filename` は "FITTING_yyyymmddHHMMSS.json" のような形式
-    # settings/jsonフォルダ内に実際にファイルが存在するか確認してパスを構築
-    json_filepath = os.path.join(JSON_SUBFOLDER, json_filename)
-
-    if not os.path.exists(json_filepath):
-        return jsonify({'error': f'JSON file not found: {json_filepath}'}), 404
-    
-    current_feature_filepath = session.get('feature_filepath')
-    current_target_filepath = session.get('target_filepath')
-
-    if not current_feature_filepath or not current_target_filepath:
-        return jsonify({'error': 'Feature or Target CSV files are not currently loaded. Please load them first.'}), 400
-
-    try:
-        with open(json_filepath, 'r', encoding='utf-8') as f:
-            loaded_data = json.load(f)
-        
-        loaded_feature_csv_path = loaded_data.get('feature_csv_path')
-        loaded_target_csv_path = loaded_data.get('target_csv_path')
-
-        # パスの一致チェック
-        # ロードされたパスと現在のセッションパスを正規化して比較
-        if not (os.path.normpath(loaded_feature_csv_path) == os.path.normpath(current_feature_filepath) and \
-                os.path.normpath(loaded_target_csv_path) == os.path.normpath(current_target_filepath)):
-            
-            # 詳細なエラーメッセージを返す
-            error_detail = f"Loaded Feature Path: {loaded_feature_csv_path}, Current Feature Path: {current_feature_filepath}\n" \
-                           f"Loaded Target Path: {loaded_target_csv_path}, Current Target Path: {current_target_filepath}"
-            app.logger.warning(f"Path mismatch during load: {error_detail}")
-            return jsonify({'error': 'The configuration file was saved with different CSV files. Please load the matching CSVs first.'}), 400
-        
-        # 成功した場合、必要な情報を返す
-        return jsonify({
-            'message': 'Configuration loaded successfully.',
-            'fitting_config': loaded_data.get('config'),
-            'fitting_method': loaded_data.get('fitting_method')
-        }), 200
-
-    except json.JSONDecodeError:
-        return jsonify({'error': 'Invalid JSON format in the selected file.'}), 400
-    except Exception as e:
-        app.logger.error(f"Error loading fitting config: {e}", exc_info=True)
-        return jsonify({'error': f'Failed to load fitting configuration: {str(e)}'}), 500
-
-
-@app.route('/save_function_config', methods=['POST'])
-def save_function_config():
-    """
-    FUNCTIONタブの関数定義をJSONファイルとして保存します。
-    """
-    data = request.get_json()
-    functions = data.get('functions', [])
-
-    if not functions:
-        return jsonify({'error': 'No function definitions received.'}), 400
-    
-    # ロードされているFeature/Target CSVのパスを取得
-    feature_filepath = session.get('feature_filepath')
-    target_filepath = session.get('target_filepath')
-
-    if not feature_filepath or not target_filepath:
-        return jsonify({'error': 'Feature or Target CSV files not loaded. Cannot save function configuration.'}), 400
-
-
-    # 保存するデータ構造を構築
-    save_data = {
-        'timestamp': datetime.now().isoformat(),
-        'feature_csv_path': os.path.abspath(feature_filepath), # 絶対パスで保存
-        'target_csv_path': os.path.abspath(target_filepath),   # 絶対パスで保存
-        'functions': functions
-    }
-
-    # ファイル名生成
-    timestamp_str = datetime.now().strftime('%Y%m%d%H%M%S')
-    filename = f"FUNCTION_{timestamp_str}.json"
-    filepath = os.path.join(JSON_SUBFOLDER, filename)
-
-    try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(save_data, f, ensure_ascii=False, indent=4)
-        return jsonify({'message': f'Function configuration saved successfully: {filename}', 'filepath': filepath}), 200
-    except Exception as e:
-        app.logger.error(f"Error saving function config: {e}", exc_info=True)
-        return jsonify({'error': f'Failed to save function configuration: {str(e)}'}), 500
-
-@app.route('/load_function_config', methods=['POST'])
-def load_function_config():
-    """
-    FUNCTIONタブのJSON設定ファイルをロードし、その内容を返します。
+    MODELタブのJSON設定ファイルをロードし、その内容を返します。
     現在ロードされているCSVファイルのパスとの一致を検証します。
     """
     data = request.get_json()
@@ -406,23 +307,23 @@ def load_function_config():
         loaded_feature_csv_path = loaded_data.get('feature_csv_path')
         loaded_target_csv_path = loaded_data.get('target_csv_path')
 
-        # パスの一致チェック
         if not (os.path.normpath(loaded_feature_csv_path) == os.path.normpath(current_feature_filepath) and \
                 os.path.normpath(loaded_target_csv_path) == os.path.normpath(current_target_filepath)):
             
             error_detail = f"Loaded Feature Path: {loaded_feature_csv_path}, Current Feature Path: {current_feature_filepath}\n" \
                            f"Loaded Target Path: {loaded_target_csv_path}, Current Target Path: {current_target_filepath}"
-            app.logger.warning(f"Path mismatch during function load: {error_detail}")
-            return jsonify({'error': 'The function configuration file was saved with different CSV files. Please load the matching CSVs first.'}), 400
+            app.logger.warning(f"Path mismatch during model load: {error_detail}")
+            return jsonify({'error': 'The configuration file was saved with different CSV files. Please load the matching CSVs first.'}), 400
         
-        # 成功した場合、必要な情報を返す
         return jsonify({
-            'message': 'Function configuration loaded successfully.',
+            'message': 'Configuration loaded successfully.',
+            'fitting_config': loaded_data.get('fitting_config'),
+            'fitting_method': loaded_data.get('fitting_method'),
             'functions': loaded_data.get('functions')
         }), 200
 
     except json.JSONDecodeError:
         return jsonify({'error': 'Invalid JSON format in the selected file.'}), 400
     except Exception as e:
-        app.logger.error(f"Error loading function config: {e}", exc_info=True)
-        return jsonify({'error': f'Failed to load function configuration: {str(e)}'}), 500
+        app.logger.error(f"Error loading model config: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to load model configuration: {str(e)}'}), 500

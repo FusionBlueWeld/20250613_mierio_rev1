@@ -7,12 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFeatureSelections = {}; // 現在のFeatureパラメータ選択状態 {headerName: {type: 'Constant'/'X_axis'/'Y_axis', value: '...'}}
     let currentTargetSelection = ''; // 現在のTargetパラメータ選択状態
 
-    // FITTINGタブのドロップダウン選択状態を保持するオブジェクト
-    let fittingSelections = {}; 
+    // MODELタブのドロップダウン選択状態を保持するオブジェクト (旧 fittingSelections)
+    let modelFittingSelections = {}; 
 
-    // FUNCTIONタブで定義された関数を保持する配列
-    // この配列が、UIと保存/ロード機能の「真の源」となります
-    let currentFunctions = []; 
+    // MODELタブで定義された関数を保持する配列 (旧 currentFunctions)
+    let modelFunctions = []; 
 
 
     // タブ切り替え機能
@@ -33,10 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // タブ切り替え時の処理
         if (tabName === 'view-tab') {
             updatePlot();
-        } else if (tabName === 'fitting-tab') {
-            populateFittingTable(); // FITTINGタブに切り替わったときにテーブルを更新
-        } else if (tabName === 'function-tab') {
-            populateFunctionTable(); // FUNCTIONタブに切り替わったときにテーブルを現在の状態に更新 (currentFunctionsから)
+        } else if (tabName === 'model-tab') {
+            // MODELタブに切り替わったときに両方のテーブルを更新
+            populateFunctionTable(); 
+            populateFittingTable(); 
         }
     };
 
@@ -58,9 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('feature-params-container').innerHTML = '';
             featureHeaders = []; // ヘッダー情報をクリア
             currentFeatureSelections = {}; // 選択状態もクリア
-            fittingSelections = {}; // FITTINGタブの選択状態もクリア
+            modelFittingSelections = {}; // MODELタブの選択状態もクリア
             updatePlotDisplayState(); // グラフ表示状態を更新
-            populateFittingTable(); // FITTINGタブのテーブルもクリア
+            populateFittingTable(); // MODELタブのFITTINGテーブルもクリア
         }
     });
 
@@ -75,9 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('target-params-container').innerHTML = '';
             targetHeaders = []; // ヘッダー情報をクリア
             currentTargetSelection = ''; // 選択状態もクリア
-            fittingSelections = {}; // FITTINGタブの選択状態もクリア
+            modelFittingSelections = {}; // MODELタブの選択状態もクリア
             updatePlotDisplayState(); // グラフ表示状態を更新
-            populateFittingTable(); // FITTINGタブのテーブルもクリア
+            populateFittingTable(); // MODELタブのFITTINGテーブルもクリア
         }
     });
 
@@ -101,19 +100,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 if (fileType === 'feature') {
                     featureHeaders = result.headers;
-                    // Featureヘッダーが変わったら、FITTINGタブの選択状態をリセット
-                    fittingSelections = {}; 
+                    // Featureヘッダーが変わったら、MODELタブの選択状態をリセット
+                    modelFittingSelections = {}; 
                     populateFeatureParameters(featureHeaders);
                 } else if (fileType === 'target') {
                     targetHeaders = result.headers;
-                    // Targetヘッダーが変わったら、FITTINGタブの選択状態をリセット
-                    fittingSelections = {};
+                    // Targetヘッダーが変わったら、MODELタブの選択状態をリセット
+                    modelFittingSelections = {};
                     populateTargetParameters(targetHeaders);
                 }
                 updatePlotDisplayState(); // ファイルがアップロードされたらグラフ表示状態を更新
                 updatePlot(); // グラフを描画・更新
 
-                // FITTINGタブのテーブルも更新
+                // MODELタブのテーブルも更新
                 populateFittingTable(); 
 
             } else {
@@ -129,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     targetHeaders = [];
                     currentTargetSelection = '';
                 }
-                fittingSelections = {}; // エラー時もクリア
+                modelFittingSelections = {}; // エラー時もクリア
                 updatePlotDisplayState(); // エラー時もグラフ表示状態を更新
                 populateFittingTable(); // エラー時もテーブルをクリア
             }
@@ -382,30 +381,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // FITTINGタブの線形結合/乗積トグルスイッチのラベル更新
+    // MODELタブの線形結合/乗積トグルスイッチのラベル更新
     const fittingMethodToggle = document.getElementById('fitting-method-toggle');
     const fittingMethodLabel = document.getElementById('fitting-method-label');
     fittingMethodToggle.addEventListener('change', () => {
         fittingMethodLabel.textContent = fittingMethodToggle.checked ? '線形結合' : '乗積';
     });
 
-    // FITTINGタブのテーブルにドロップダウンを生成
+    // MODELタブのFITTING設定テーブルにドロップダウンを生成
     const fittingTableBody = document.querySelector('#fitting-table tbody');
-    const fittingApplyButton = document.getElementById('fitting-apply-button');
-    const fittingJsonInput = document.getElementById('fitting-json-input'); // LOADボタンに対応するinput[type="file"]
+    const modelApplyButton = document.getElementById('model-apply-button');
+    const modelLoadButton = document.getElementById('model-load-button');
+    const modelJsonInput = document.getElementById('model-json-input'); 
 
     /**
-     * FITTINGタブのテーブルをFeature/Targetヘッダーに基づいて動的に生成します。
-     * 選択状態はfittingSelectionsに保存/復元されます。
+     * MODELタブのFITTING設定テーブルをFeature/Targetヘッダーに基づいて動的に生成します。
+     * 選択状態はmodelFittingSelectionsに保存/復元されます。
      */
     async function populateFittingTable() {
         // Feature/Targetヘッダーがロードされているか確認
         if (featureHeaders.length === 0 || targetHeaders.length === 0) {
-            fittingTableBody.innerHTML = '<tr><td colspan="100%">CSVファイルがロードされていません。FeatureとTargetファイルをアップロードしてください。</td></td></tr>';
-            fittingApplyButton.disabled = true; // CSVがない場合はAPPLYボタンを無効化
+            fittingTableBody.innerHTML = '<tr><td colspan="100%">CSVファイルがロードされていません。FeatureとTargetファイルをアップロードしてください。</td></tr>';
+            modelApplyButton.disabled = true; 
             return;
         }
-        fittingApplyButton.disabled = false; // CSVがあればAPPLYボタンを有効化
+        modelApplyButton.disabled = false; 
 
         // FITTINGテーブルのヘッダーを更新
         const fittingTableHeaderRow = document.querySelector('#fitting-table thead tr');
@@ -416,11 +416,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fittingTableBody.innerHTML = ''; // 既存の行をクリア
 
-        // currentFunctions (FITTINGタブの選択肢) が最新の状態であることを確認
-        // (FUNCTIONタブの変更をFITTINGタブに反映するため)
-        // populateFunctionTable() または FUNCTIONタブのinputイベントでcurrentFunctionsが更新されているはず
-        // そのため、ここでは availableFunctions を currentFunctions から構築し直す
-        availableFunctions = [...currentFunctions]; // 最新の関数リストでavailableFunctionsを更新
+        // modelFunctions (MODELタブの関数選択肢) が最新の状態であることを確認
+        // modelFunctionsからavailableFunctionsを構築
+        const availableFunctions = modelFunctions.map(func => func.name).filter(name => name); // 有効な関数名のみ
+        console.log("Available Functions for Fitting Table:", availableFunctions);
+
 
         featureHeaders.forEach(fHeader => {
             const row = document.createElement('tr');
@@ -433,35 +433,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 select.classList.add('fitting-dropdown');
                 select.innerHTML = '<option value="">--関数を選択--</option>';
 
-                // FUNCTIONタブで定義された関数をドロップダウンに追加
-                availableFunctions.forEach(func => { // availableFunctionsを使用
+                // MODELタブで定義された関数をドロップダウンに追加
+                availableFunctions.forEach(funcName => { 
                     const option = document.createElement('option');
-                    option.value = func.name;
-                    option.textContent = func.name;
+                    option.value = funcName;
+                    option.textContent = funcName;
                     select.appendChild(option);
                 });
 
                 // 既存の選択状態を復元
-                if (fittingSelections[fHeader] && fittingSelections[fHeader][tHeader]) {
+                if (modelFittingSelections[fHeader] && modelFittingSelections[fHeader][tHeader]) {
                     // ロードされた関数名がドロップダウンの選択肢に存在するか確認
-                    const optionExists = Array.from(select.options).some(option => option.value === fittingSelections[fHeader][tHeader]);
+                    const optionExists = Array.from(select.options).some(option => option.value === modelFittingSelections[fHeader][tHeader]);
                     if (optionExists) {
-                        select.value = fittingSelections[fHeader][tHeader];
+                        select.value = modelFittingSelections[fHeader][tHeader];
                     } else {
                         // 選択肢にない場合はデフォルト値に戻す
                         select.value = '';
-                        if (!fittingSelections[fHeader]) fittingSelections[fHeader] = {};
-                        fittingSelections[fHeader][tHeader] = ''; // 選択状態もリセット
+                        if (!modelFittingSelections[fHeader]) modelFittingSelections[fHeader] = {};
+                        modelFittingSelections[fHeader][tHeader] = ''; // 選択状態もリセット
                     }
                 }
 
                 // ドロップダウンの変更イベントをリッスン
                 select.addEventListener('change', (event) => {
-                    if (!fittingSelections[fHeader]) {
-                        fittingSelections[fHeader] = {};
+                    if (!modelFittingSelections[fHeader]) {
+                        modelFittingSelections[fHeader] = {};
                     }
-                    fittingSelections[fHeader][tHeader] = event.target.value;
-                    console.log('Fitting Selection Updated:', fittingSelections); // デバッグ用
+                    modelFittingSelections[fHeader][tHeader] = event.target.value;
+                    console.log('Model Fitting Selection Updated:', modelFittingSelections); // デバッグ用
                 });
 
                 cell.appendChild(select);
@@ -471,103 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // APPLYボタンのクリックイベント
-    fittingApplyButton.addEventListener('click', async () => {
-        // 送信するデータ構造を構築
-        const fittingConfigToSend = {};
-        // 現在のテーブルの状態を走査してデータを収集
-        document.querySelectorAll('#fitting-table tbody tr').forEach(row => {
-            const featureHeader = row.dataset.featureHeader;
-            if (featureHeader) {
-                fittingConfigToSend[featureHeader] = {};
-                // targetHeadersの順番に合わせてdropdownの選択値を取得
-                row.querySelectorAll('.fitting-dropdown').forEach((dropdown, index) => {
-                    const targetHeader = targetHeaders[index]; 
-                    fittingConfigToSend[featureHeader][targetHeader] = dropdown.value;
-                });
-            }
-        });
-
-        const fittingMethod = fittingMethodToggle.checked ? '線形結合' : '乗積';
-
-        const payload = {
-            fittingConfig: fittingConfigToSend,
-            fittingMethod: fittingMethod
-        };
-
-        try {
-            const response = await fetch('/save_fitting_config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
-            const result = await response.json();
-
-            if (response.ok) {
-                alert(`設定が保存されました: ${result.message}`);
-                console.log(result.filepath);
-                // TODO: FITTINGタブからの関数情報が渡されたら、VIEWタブのオーバーラップスイッチをONにできる
-                // overlapToggle.disabled = false;
-            } else {
-                alert(`設定の保存に失敗しました: ${result.error}`);
-            }
-        } catch (error) {
-            console.error('Error saving fitting config:', error);
-            alert(`設定保存中にエラーが発生しました: ${error.message}`);
-        }
-    });
-
-    // FITTINGタブのLOADボタン (ファイル選択 input) のイベントリスナー
-    fittingJsonInput.addEventListener('change', async (event) => {
-        if (event.target.files.length > 0) {
-            const file = event.target.files[0];
-            const filename = file.name;
-
-            try {
-                const response = await fetch('/load_fitting_config', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ filename: filename }), // ファイル名を直接送信
-                });
-                const result = await response.json();
-
-                if (response.ok) {
-                    alert(result.message);
-                    fittingSelections = result.fitting_config || {}; // ロードした設定を反映
-                    fittingMethodToggle.checked = (result.fitting_method === '線形結合'); // トグルスイッチの状態を反映
-                    fittingMethodLabel.textContent = fittingMethodToggle.checked ? '線形結合' : '乗積'; // ラベルも更新
-                    populateFittingTable(); // テーブルをロードした設定で更新
-                } else {
-                    alert(`設定のロードに失敗しました: ${result.error}`);
-                }
-            } catch (error) {
-                console.error('Error loading fitting config:', error);
-                alert(`設定ロード中にエラーが発生しました: ${error.message}`);
-            }
-        }
-    });
-
-
-    // FUNCTIONタブの「+Add」「-Del」ボタン機能
-    const addFunctionRowButton = document.getElementById('add-function-row');
-    const deleteFunctionRowButton = document.getElementById('delete-function-row');
-    const functionTableBody = document.getElementById('function-table-body');
-    const functionApplyButton = document.getElementById('function-apply-button'); // FUNCTIONタブAPPLYボタン
-    const functionJsonInput = document.getElementById('function-json-input'); // FUNCTIONタブLOADボタン
-
-    // 行番号を更新するヘルパー関数
-    function updateRowNumbers() {
-        const rows = functionTableBody.querySelectorAll('.function-row');
-        rows.forEach((row, index) => {
-            row.querySelector('td:first-child').textContent = index + 1;
-        });
-    }
-
-    // デフォルト関数データ (初回起動時のみ使用。currentFunctionsの初期値として)
+    // デフォルト関数データ (初回起動時のみ使用。modelFunctionsの初期値として)
     const initialDefaultFunctions = [
         { name: "Func_X1_Zdepth", equation: "exp(-x / scale) + offset", parameters: "scale=300, offset=0.5" },
         { name: "Func_X2_Zdepth", equation: "A * exp(-(y - mu_y)^2 / (2 * sigma_y^2))", parameters: "A=1.0, mu_y=mu_y_final, sigma_y_rise=3.0, sigma_y_fall=3.0 * 1.2" },
@@ -577,13 +481,26 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: "Func_X3_Zwidth", equation: "p^exponent", parameters: "exponent=0.4" }
     ];
 
+    // MODELタブのFUNCTION定義テーブル関連
+    const addFunctionRowButton = document.getElementById('add-function-row');
+    const deleteFunctionRowButton = document.getElementById('delete-function-row');
+    const functionTableBody = document.getElementById('function-table-body');
+
+    // 行番号を更新するヘルパー関数
+    function updateRowNumbers() {
+        const rows = functionTableBody.querySelectorAll('.function-row');
+        rows.forEach((row, index) => {
+            row.querySelector('td:first-child').textContent = index + 1;
+        });
+    }
+
     /**
-     * currentFunctions配列に基づいてFUNCTIONタブのテーブルを再描画します。
-     * この関数は、データモデル(currentFunctions)が変更されたときに呼び出されます。
+     * modelFunctions配列に基づいてFUNCTION定義テーブルを再描画します。
+     * この関数は、データモデル(modelFunctions)が変更されたときに呼び出されます。
      */
     function populateFunctionTable() {
         functionTableBody.innerHTML = ''; // テーブルの内容を完全にクリア
-        currentFunctions.forEach((func, index) => {
+        modelFunctions.forEach((func, index) => {
             const newRow = document.createElement('tr');
             newRow.classList.add('function-row');
             newRow.dataset.functionIndex = index; // データモデルのインデックスを保存
@@ -598,20 +515,17 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRowNumbers();
 
         // 各入力フィールドにイベントリスナーを再設定
-        // delegateイベントリスナー (functionTableBodyに親イベントリスナーを一つだけ設定する方法)の方が、
-        // 毎回ループで設定するよりパフォーマンスが良いですが、今回は直接設定します。
         document.querySelectorAll('#function-table-body .function-row input').forEach(input => {
             input.addEventListener('input', (event) => {
                 const row = event.target.closest('.function-row');
-                const index = parseInt(row.dataset.functionIndex); // データモデルのインデックスを取得
-                const func = currentFunctions[index];
+                const index = parseInt(row.dataset.functionIndex); 
+                const func = modelFunctions[index];
 
-                if (!func) return; // データが存在しない場合は何もしない
+                if (!func) return; 
 
-                // 変更された入力フィールドの種類に基づいて、対応するプロパティを更新
                 if (event.target.classList.contains('function-name')) {
                     func.name = event.target.value.trim();
-                    // 関数名が変更されたらFITTINGタブのドロップダウンも更新
+                    // 関数名が変更されたらFITTING設定テーブルのドロップダウンも更新
                     populateFittingTable(); 
                 } else if (event.target.classList.contains('function-equation')) {
                     func.equation = event.target.value.trim();
@@ -619,66 +533,54 @@ document.addEventListener('DOMContentLoaded', () => {
                     func.parameters = event.target.value.trim();
                 }
                 
-                console.log("currentFunctions Updated:", currentFunctions); // デバッグ用
-                // currentFunctionsが更新されたので、availableFunctionsも更新
-                updateAvailableFunctions(); 
+                console.log("modelFunctions Updated:", modelFunctions); 
             });
         });
         
-        // availableFunctions (FITTINGタブの選択肢) も最新の状態に更新
-        updateAvailableFunctions();
-        populateFittingTable(); // FITTINGタブのドロップダウンも更新
+        // 関数リストが変更されたらFITTING設定テーブルも更新
+        populateFittingTable(); 
     }
 
-    /**
-     * currentFunctionsの内容をavailableFunctionsにコピーします。
-     * availableFunctionsはFITTINGタブのドロップダウンのソースです。
-     */
-    function updateAvailableFunctions() {
-        availableFunctions = [...currentFunctions]; 
-        console.log("Available Functions (for FITTING) Updated:", availableFunctions); // デバッグ用
-    }
-
-
-    // DOMContentLoaded時にFunctionタブに初期関数をロード
-    currentFunctions = [...initialDefaultFunctions];
-    populateFunctionTable(); // 初回描画
-
+    // DOMContentLoaded時にMODELタブに初期関数をロード
+    modelFunctions = [...initialDefaultFunctions];
+    populateFunctionTable(); 
 
     addFunctionRowButton.addEventListener('click', () => {
-        // 新しい空の関数オブジェクトをcurrentFunctionsに追加
-        currentFunctions.push({ name: "", equation: "", parameters: "" });
-        populateFunctionTable(); // テーブルを再描画
+        modelFunctions.push({ name: "", equation: "", parameters: "" });
+        populateFunctionTable(); 
     });
 
     deleteFunctionRowButton.addEventListener('click', () => {
-        if (currentFunctions.length > 0) { // currentFunctionsに行が存在するかチェック
-            currentFunctions.pop(); // 最後の関数を削除
-            populateFunctionTable(); // テーブルを再描画
+        if (modelFunctions.length > 0) { 
+            modelFunctions.pop(); 
+            populateFunctionTable(); 
         }
     });
 
-    // FUNCTIONタブの入力フィールドの変更を監視
-    // 各入力フィールドに直接イベントリスナーを設定するため、
-    // 親要素でのイベント委譲は今回は削除
-    // functionTableBody.addEventListener('input', ...); は削除
+    // MODELタブ APPLYボタンのクリックイベント (関数定義とフィッティング設定をまとめて保存)
+    modelApplyButton.addEventListener('click', async () => {
+        const fittingConfigToSend = {};
+        document.querySelectorAll('#fitting-table tbody tr').forEach(row => {
+            const featureHeader = row.dataset.featureHeader;
+            if (featureHeader) {
+                fittingConfigToSend[featureHeader] = {};
+                row.querySelectorAll('.fitting-dropdown').forEach((dropdown, index) => {
+                    const targetHeader = targetHeaders[index]; 
+                    fittingConfigToSend[featureHeader][targetHeader] = dropdown.value;
+                });
+            }
+        });
 
-    // FUNCTIONタブ APPLYボタンのクリックイベント
-    functionApplyButton.addEventListener('click', async () => {
-        const functionsToSave = currentFunctions; // currentFunctionsに常に最新が反映されているはず
-
-        // TODO: 関数表記ルールのチェック機能は後で実装
-        // if (!validateFunctions(functionsToSave)) {
-        //     alert('関数表記ルールに違反しています。');
-        //     return;
-        // }
+        const fittingMethod = fittingMethodToggle.checked ? '線形結合' : '乗積';
 
         const payload = {
-            functions: functionsToSave
+            fittingConfig: fittingConfigToSend,
+            fittingMethod: fittingMethod,
+            functions: modelFunctions // 関数定義も一緒に送信
         };
 
         try {
-            const response = await fetch('/save_function_config', {
+            const response = await fetch('/save_model_config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -688,46 +590,59 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (response.ok) {
-                alert(`関数設定が保存されました: ${result.message}`);
+                alert(`設定が保存されました: ${result.message}`);
                 console.log(result.filepath);
+                // TODO: VIEWタブのオーバーラップスイッチをONにできるロジックをここに
+                overlapToggle.disabled = false; // 仮で有効化
             } else {
-                alert(`関数設定の保存に失敗しました: ${result.error}`);
+                alert(`設定の保存に失敗しました: ${result.error}`);
             }
         } catch (error) {
-            console.error('Error saving function config:', error);
-            alert(`関数設定保存中にエラーが発生しました: ${error.message}`);
+            console.error('Error saving model config:', error);
+            alert(`設定保存中にエラーが発生しました: ${error.message}`);
         }
     });
 
-    // FUNCTIONタブ LOADボタン (ファイル選択 input) のイベントリスナー
-    functionJsonInput.addEventListener('change', async (event) => {
+    // MODELタブ LOADボタン (ファイル選択 input) のイベントリスナー
+    modelJsonInput.addEventListener('change', async (event) => {
         if (event.target.files.length > 0) {
             const file = event.target.files[0];
             const filename = file.name;
 
             try {
-                const response = await fetch('/load_function_config', {
+                const response = await fetch('/load_model_config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ filename: filename }), // ファイル名を直接送信
+                    body: JSON.stringify({ filename: filename }), 
                 });
                 const result = await response.json();
 
                 if (response.ok) {
                     alert(result.message);
-                    // ロードした関数をcurrentFunctionsに反映し、テーブルを再描画
-                    currentFunctions = result.functions || []; // ロードした関数リストで上書き
-                    populateFunctionTable(); // テーブルをロードした設定で更新 (これですべての更新が連鎖する)
+                    modelFittingSelections = result.fitting_config || {}; 
+                    fittingMethodToggle.checked = (result.fitting_method === '線形結合'); 
+                    fittingMethodLabel.textContent = fittingMethodToggle.checked ? '線形結合' : '乗積'; 
+                    modelFunctions = result.functions || []; 
+
+                    populateFunctionTable(); 
+                    populateFittingTable(); 
+
+                    overlapToggle.disabled = false; // 仮で有効化
                 } else {
-                    alert(`関数設定のロードに失敗しました: ${result.error}`);
+                    alert(`設定のロードに失敗しました: ${result.error}`);
                 }
             } catch (error) {
-                console.error('Error loading function config:', error);
-                alert(`関数設定ロード中にエラーが発生しました: ${error.message}`);
+                console.error('Error loading model config:', error);
+                alert(`設定ロード中にエラーが発生しました: ${error.message}`);
             }
         }
+    });
+
+    // 「LOAD」ボタンクリックでinput[type="file"]をトリガー
+    modelLoadButton.addEventListener('click', () => {
+        modelJsonInput.click();
     });
 
 
@@ -789,9 +704,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // OVERLAPスイッチの動作制御
     overlapToggle.addEventListener('change', () => {
         const isOverlapEnabled = overlapToggle.checked;
-        const isFunctionLoaded = true; // 仮のフラグ。実際はFITTINGタブからの関数情報が渡されているかチェック
+        const isModelConfigLoaded = true; // 仮のフラグ。実際はMODELタブから有効な設定がロードされているかチェック
 
-        if (isOverlapEnabled && isFunctionLoaded) {
+        if (isOverlapEnabled && isModelConfigLoaded) {
             learningButton.disabled = false;
             thresholdButton.disabled = false;
             thresholdValueInput.disabled = false;

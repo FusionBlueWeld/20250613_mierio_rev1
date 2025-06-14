@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-I-E-R-I-O</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- Plotly.js CDN (グラフ表示用) -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
@@ -15,10 +14,8 @@
         </header>
 
         <main>
-            <!-- Feature & Target File Selection -->
             <section class="file-selection">
-                <div class="file-input-wrapper"> <!-- このラッパーを追加 -->
-                    <div class="input-group">
+                <div class="file-input-wrapper"> <div class="input-group">
                         <label for="feature-file-name">Feature:</label>
                         <input type="text" id="feature-file-name" class="file-display-box" readonly placeholder="No file selected">
                         <button class="file-button" onclick="document.getElementById('feature-file-input').click()">ファイルを選択</button>
@@ -33,11 +30,9 @@
                 </div>
             </section>
 
-            <!-- Production I/O Section -->
             <section class="production-io">
                 <h2>Production I/O:</h2>
                 <div class="led-buttons">
-                    <!-- LEDボタンを8個配置 -->
                     <button class="led-button" id="ch1-led">Ch1: <span class="led-indicator"></span></button>
                     <button class="led-button" id="ch2-led">Ch2: <span class="led-indicator"></span></button>
                     <button class="led-button" id="ch3-led">Ch3: <span class="led-indicator"></span></button>
@@ -49,30 +44,23 @@
                 </div>
             </section>
 
-            <!-- Tabs Section -->
             <section class="tabs-section">
                 <div class="tabs">
                     <button class="tab-button active" onclick="openTab(event, 'view-tab')">VIEW</button>
-                    <button class="tab-button" onclick="openTab(event, 'fitting-tab')">FITTING</button>
-                    <button class="tab-button" onclick="openTab(event, 'function-tab')">FUNCTION</button>
-                </div>
+                    <button class="tab-button" onclick="openTab(event, 'model-tab')">MODEL</button> </div>
 
-                <!-- VIEW Tab Content -->
                 <div id="view-tab" class="tab-content active">
                     <div class="view-controls">
                         <div class="parameter-section feature-parameters">
                             <h3>Feature parameter</h3>
                             <div id="feature-params-container">
-                                <!-- FeatureパラメータのドロップダウンはJSで動的に追加 -->
-                            </div>
+                                </div>
                         </div>
 
                         <div class="parameter-section target-parameters">
                             <h3>Target parameter</h3>
                             <div id="target-params-container">
-                                <!-- TargetパラメータのドロップダウンはJSで動的に追加 -->
-                                <!-- 初期状態では空にする -->
-                            </div>
+                                </div>
                         </div>
                     </div>
 
@@ -90,52 +78,25 @@
                     </div>
 
                     <div id="graph-container" class="graph-container">
-                        <!-- Plotlyグラフがここに表示されます -->
-                    </div>
+                        </div>
                      <div id="learning-progress-bar-container" class="learning-progress-bar-container">
                         <div id="learning-progress-bar" class="learning-progress-bar"></div>
                         <span id="learning-progress-text" class="learning-progress-text"></span>
                     </div>
                 </div>
 
-                <!-- FITTING Tab Content -->
-                <div id="fitting-tab" class="tab-content">
-                    <div class="fitting-controls">
-                        <button class="action-button" onclick="document.getElementById('fitting-json-input').click()">LOAD</button>
-                        <input type="file" id="fitting-json-input" accept=".json" style="display: none;">
-                        <div class="toggle-switch-container">
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="fitting-method-toggle" checked> <!-- checkedでデフォルトは線形結合 -->
-                                <span class="slider round"></span>
-                            </label>
-                            <span id="fitting-method-label">線形結合</span>
-                        </div>
+                <div id="model-tab" class="tab-content">
+                    <div class="model-controls-top">
+                        <button class="action-button" id="model-load-button">LOAD</button>
+                        <input type="file" id="model-json-input" accept=".json" style="display: none;">
                     </div>
-                    <div class="fitting-table-container">
-                        <table id="fitting-table" class="fitting-table">
-                            <thead>
-                                <tr>
-                                    <th></th> <!-- Featureヘッダー用の空セル -->
-                                    <!-- TargetヘッダーはJSで動的に追加 -->
-                                    <th>Target1</th>
-                                    <th>Target2</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- FeatureとTargetの交差セルにドロップダウンをJSで動的に追加 -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <button class="action-button" id="fitting-apply-button">APPLY</button>
-                </div>
 
-                <!-- FUNCTION Tab Content -->
-                <div id="function-tab" class="tab-content">
-                    <div class="function-controls">
-                        <button class="action-button" onclick="document.getElementById('function-json-input').click()">LOAD</button>
-                        <input type="file" id="function-json-input" accept=".json" style="display: none;">
-                        <button class="action-button add-del-button" id="add-function-row">+Add</button>
-                        <button class="action-button add-del-button" id="delete-function-row">-Del</button>
+                    <div class="model-section-header">
+                        <h3 class="model-section-title">Function Definitions</h3>
+                        <div class="model-section-actions">
+                            <button class="action-button add-del-button" id="add-function-row">+Add</button>
+                            <button class="action-button add-del-button" id="delete-function-row">-Del</button>
+                        </div>
                     </div>
                     <div class="function-table-container">
                         <table class="function-table">
@@ -148,17 +109,40 @@
                                 </tr>
                             </thead>
                             <tbody id="function-table-body">
-                                <!-- デフォルトの行とデフォルト関数はJSで追加される -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
-                    <button class="action-button" id="function-apply-button">APPLY</button>
+
+                    <div class="model-section-header">
+                        <h3 class="model-section-title">Fitting Configurations</h3>
+                        <div class="model-section-actions">
+                            <div class="toggle-switch-container">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="fitting-method-toggle" checked> <span class="slider round"></span>
+                                </label>
+                                <span id="fitting-method-label">線形結合</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fitting-table-container">
+                        <table id="fitting-table" class="fitting-table">
+                            <thead>
+                                <tr>
+                                    <th></th> </tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
+                    </div>
+
+                    <div class="model-controls-bottom">
+                        <button class="action-button" id="model-apply-button">APPLY</button>
+                    </div>
                 </div>
             </section>
         </main>
     </div>
 
-    <!-- JavaScriptファイルはbodyの閉じタグの直前に配置するのが一般的です -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

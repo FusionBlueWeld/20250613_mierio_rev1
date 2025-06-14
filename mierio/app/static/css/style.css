@@ -204,10 +204,12 @@ section {
     border-radius: 0 0 8px 8px;
     background-color: #fff;
     min-height: 400px; /* コンテンツの最低高 */
+    display: flex; /* Flexboxレイアウトを適用 */
+    flex-direction: column; /* 子要素を縦に並べる */
 }
 
 .tab-content.active {
-    display: block;
+    display: flex;
 }
 
 /* VIEW Tab Specific Styles */
@@ -432,20 +434,44 @@ input:checked + .slider:before {
 }
 
 
-/* FITTING Tab Specific Styles */
-.fitting-controls {
+/* MODEL Tab Specific Styles (統合されたタブ) */
+.model-tab {
     display: flex;
+    flex-direction: column;
+    gap: 20px; /* 各セクション間のスペース */
+}
+
+.model-controls-top {
+    display: flex;
+    justify-content: flex-start; /* LOADボタンを左寄せ */
+    margin-bottom: 10px;
+}
+
+.model-section-header {
+    display: flex;
+    justify-content: space-between; /* タイトルとボタンを左右に配置 */
     align-items: center;
-    gap: 20px;
-    margin-bottom: 20px;
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    font-size: 1.3em;
+}
+
+.model-section-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
 }
 
 #fitting-method-label {
     min-width: 80px; /* トグルスイッチのラベル幅 */
 }
 
+/* Fitting Table (元 FITTING Tab のスタイル) */
 .fitting-table-container {
-    max-height: 400px; /* スクロール可能にする */
+    max-height: 250px; /* スクロール可能にする (高さを調整) */
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -459,16 +485,17 @@ input:checked + .slider:before {
 
 .fitting-table th, .fitting-table td {
     border: 1px solid #e9ecef;
-    padding: 12px 15px;
+    padding: 10px 12px; /* パディングを少し小さく */
     text-align: left;
-    white-space: nowrap; /* ヘッダーが折り返されないように */
+    white-space: nowrap;
+    font-size: 0.9em; /* フォントサイズを少し小さく */
 }
 
 .fitting-table th {
     background-color: #f8f9fa;
     font-weight: bold;
     color: #495057;
-    position: sticky; /* ヘッダーを固定 */
+    position: sticky;
     top: 0;
     z-index: 2;
 }
@@ -479,30 +506,17 @@ input:checked + .slider:before {
 
 .fitting-dropdown {
     width: 100%;
-    padding: 8px 10px;
+    padding: 6px 8px; /* パディングを少し小さく */
     border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 0.95em;
+    border-radius: 4px;
+    font-size: 0.9em; /* フォントサイズを少し小さく */
     background-color: #fff;
-    min-width: 150px;
+    min-width: 120px; /* ドロップダウンの最小幅を調整 */
 }
 
-/* FUNCTION Tab Specific Styles */
-.function-controls {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.add-del-button {
-    background-color: #17a2b8; /* シアン系 */
-}
-.add-del-button:hover {
-    background-color: #138496;
-}
-
+/* Function Table (元 FUNCTION Tab のスタイル) */
 .function-table-container {
-    max-height: 400px; /* スクロール可能にする */
+    max-height: 250px; /* スクロール可能にする (高さを調整) */
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -516,8 +530,9 @@ input:checked + .slider:before {
 
 .function-table th, .function-table td {
     border: 1px solid #e9ecef;
-    padding: 12px 15px;
+    padding: 10px 12px; /* パディングを少し小さく */
     text-align: left;
+    font-size: 0.9em; /* フォントサイズを少し小さく */
 }
 
 .function-table th {
@@ -533,16 +548,40 @@ input:checked + .slider:before {
     background-color: #f3f3f3;
 }
 
-.function-table td input[type="text"] {
-    width: calc(100% - 10px); /* Padding考慮 */
-    padding: 8px 5px;
+.function-table td input {
+    width: calc(100% - 12px); /* 左右のパディングとボーダーを考慮 */
+    padding: 5px; /* パディングを少し小さく */
     border: 1px solid #ccc;
     border-radius: 4px;
-    font-size: 0.95em;
+    font-size: 0.9em; /* フォントサイズを少し小さく */
+    box-sizing: border-box; /* widthにpaddingとborderを含める */
 }
 .function-table td:first-child {
     text-align: center;
-    width: 40px; /* 番号の列の幅 */
+    width: 30px;
+}
+
+/* Add/Delete Function Buttons */
+.add-del-button {
+    background-color: #17a2b8; /* シアン系 */
+    padding: 8px 12px; /* パディングを調整 */
+    font-size: 0.9em; /* フォントサイズを調整 */
+}
+.add-del-button:hover {
+    background-color: #138496;
+}
+
+/* MODEL Tab Bottom Controls */
+.model-controls-bottom {
+    display: flex;
+    justify-content: center; /* APPLYボタンを中央に配置 */
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+.model-controls-bottom .action-button {
+    padding: 12px 30px; /* APPLYボタンのパディングを調整 */
+    font-size: 1.1em; /* APPLYボタンのフォントサイズを少し大きく */
 }
 
 /* Responsive Design */
@@ -550,14 +589,22 @@ input:checked + .slider:before {
     .container {
         padding: 20px;
     }
-    /* .led-button の flex-basis は nowrap で固定されるためここでの設定は不要 */
     .view-controls {
         flex-direction: column;
         gap: 20px;
     }
     .parameter-section {
-        min-width: unset; /* 最小幅を解除 */
-        width: 100%; /* 全幅 */
+        min-width: unset;
+        width: 100%;
+    }
+    .model-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .model-section-actions {
+        width: 100%;
+        justify-content: flex-start;
     }
 }
 
@@ -582,12 +629,11 @@ input:checked + .slider:before {
         width: 100%;
         margin-top: 10px;
     }
-    /* .led-button の flex-basis は nowrap で固定されるためここでの設定は不要 */
     .tabs {
         flex-wrap: wrap;
     }
     .tab-button {
-        flex-grow: 1; /* 小さな画面で均等に広がる */
+        flex-grow: 1;
         margin-bottom: 5px;
     }
     .view-actions {
@@ -597,13 +643,16 @@ input:checked + .slider:before {
     .threshold-input {
         width: 100%;
     }
+    .model-controls-top,
+    .model-controls-bottom {
+        justify-content: center; /* 小さい画面でも中央寄せを維持 */
+    }
 }
 
 @media (max-width: 480px) {
     .container {
         padding: 15px;
     }
-    /* .led-button の flex-basis は nowrap で固定されるためここでの設定は不要 */
     .tab-button {
         padding: 12px 15px;
         font-size: 1em;
